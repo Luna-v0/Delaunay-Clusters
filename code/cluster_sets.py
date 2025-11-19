@@ -180,7 +180,7 @@ def clusters_paper():
     """
     
     """
-    files = glob('datasets/*.txt')
+    files = glob('../datasets/*.txt')
     cluster_sets = []
     for file in files:
         df = pd.read_csv(file, sep='\s+', header=None, names=['x', 'y', 'label'])

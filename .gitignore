@@ -36,7 +36,6 @@ Thumbs.db
 # Project specific - keep CSV results but ignore large outputs
 # Keep grid_search_results_*.csv as they are results
 
-DTBSCAN.pdf
 
 
 

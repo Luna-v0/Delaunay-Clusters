@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import DBSCAN, KMeans, SpectralClustering
 from sklearn.preprocessing import StandardScaler
 import time
-from dtscan import DTSCAN, generate_test_data_s1, generate_test_data_s2, generate_test_data_s3, calculate_psr_vsr
+from dtscan import DTSCAN, generate_test_data_s1, generate_test_data_s2, generate_test_data_s3, calculate_psr
 
 
 def compare_clustering_algorithms(X, true_labels, dataset_name="Dataset"):
@@ -43,16 +43,15 @@ def compare_clustering_algorithms(X, true_labels, dataset_name="Dataset"):
     dtscan = DTSCAN(z_score_threshold=2.0, min_pts=6)
     labels_dtscan = dtscan.fit_predict(X)
     time_dtscan = time.time() - start_time
-    psr_dtscan, vsr_dtscan = calculate_psr_vsr(true_labels, labels_dtscan)
+    psr_dtscan = calculate_psr(true_labels, labels_dtscan)
     results['DTSCAN'] = {
         'labels': labels_dtscan,
         'PSR': psr_dtscan,
-        'VSR': vsr_dtscan,
         'time': time_dtscan,
         'n_clusters': len(np.unique(labels_dtscan[labels_dtscan != -1]))
     }
     print(f"   Clusters found: {results['DTSCAN']['n_clusters']}")
-    print(f"   PSR: {psr_dtscan:.3f}, VSR: {vsr_dtscan:.3f}")
+    print(f"   PSR: {psr_dtscan:.3f}")
     print(f"   Time: {time_dtscan:.3f}s")
     
     # 2. DBSCAN (traditional density-based)
@@ -70,17 +69,16 @@ def compare_clustering_algorithms(X, true_labels, dataset_name="Dataset"):
     dbscan = DBSCAN(eps=eps, min_samples=k)
     labels_dbscan = dbscan.fit_predict(X_scaled)
     time_dbscan = time.time() - start_time
-    psr_dbscan, vsr_dbscan = calculate_psr_vsr(true_labels, labels_dbscan)
+    psr_dbscan = calculate_psr(true_labels, labels_dbscan)
     results['DBSCAN'] = {
         'labels': labels_dbscan,
         'PSR': psr_dbscan,
-        'VSR': vsr_dbscan,
         'time': time_dbscan,
         'n_clusters': len(np.unique(labels_dbscan[labels_dbscan != -1]))
     }
     print(f"   Eps used: {eps:.3f}")
     print(f"   Clusters found: {results['DBSCAN']['n_clusters']}")
-    print(f"   PSR: {psr_dbscan:.3f}, VSR: {vsr_dbscan:.3f}")
+    print(f"   PSR: {psr_dbscan:.3f}")
     print(f"   Time: {time_dbscan:.3f}s")
     
     # 3. K-means (partition-based)
@@ -95,16 +93,15 @@ def compare_clustering_algorithms(X, true_labels, dataset_name="Dataset"):
         kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
         labels_kmeans = kmeans.fit_predict(X_scaled)
     time_kmeans = time.time() - start_time
-    psr_kmeans, vsr_kmeans = calculate_psr_vsr(true_labels, labels_kmeans)
+    psr_kmeans = calculate_psr(true_labels, labels_kmeans)
     results['K-means'] = {
         'labels': labels_kmeans,
         'PSR': psr_kmeans,
-        'VSR': vsr_kmeans,
         'time': time_kmeans,
         'n_clusters': len(np.unique(labels_kmeans))
     }
     print(f"   Clusters found: {results['K-means']['n_clusters']}")
-    print(f"   PSR: {psr_kmeans:.3f}, VSR: {vsr_kmeans:.3f}")
+    print(f"   PSR: {psr_kmeans:.3f}")
     print(f"   Time: {time_kmeans:.3f}s")
     
     # 4. Spectral Clustering (graph-based)
@@ -115,16 +112,15 @@ def compare_clustering_algorithms(X, true_labels, dataset_name="Dataset"):
                                      random_state=42, n_neighbors=10)
         labels_spectral = spectral.fit_predict(X_scaled)
         time_spectral = time.time() - start_time
-        psr_spectral, vsr_spectral = calculate_psr_vsr(true_labels, labels_spectral)
+        psr_spectral = calculate_psr(true_labels, labels_spectral)
         results['Spectral'] = {
             'labels': labels_spectral,
             'PSR': psr_spectral,
-            'VSR': vsr_spectral,
             'time': time_spectral,
             'n_clusters': len(np.unique(labels_spectral))
         }
         print(f"   Clusters found: {results['Spectral']['n_clusters']}")
-        print(f"   PSR: {psr_spectral:.3f}, VSR: {vsr_spectral:.3f}")
+        print(f"   PSR: {psr_spectral:.3f}")
         print(f"   Time: {time_spectral:.3f}s")
     else:
         print("   Skipped (dataset too large or no clear cluster number)")
@@ -163,7 +159,7 @@ def visualize_comparison(X, results, dataset_name="Dataset"):
                           s=10, label=f'Cluster {label}')
                 color_idx += 1
         
-        ax.set_title(f'{algo_name}\nPSR={result["PSR"]:.3f}, VSR={result["VSR"]:.3f}\n'
+        ax.set_title(f'{algo_name}\nPSR={result["PSR"]:.3f}\n'
                     f'Clusters={result["n_clusters"]}, Time={result["time"]:.3f}s')
         ax.set_aspect('equal')
         ax.grid(True, alpha=0.3)
@@ -180,21 +176,24 @@ def visualize_comparison(X, results, dataset_name="Dataset"):
 def create_summary_table(all_results):
     """
     Create a summary table similar to Tables 1-3 in the paper.
+
+    Note: VSR is not properly defined in the paper (Equation 5 is identical to Equation 4),
+    so we only report PSR here.
     """
     print("\n" + "="*80)
     print("SUMMARY TABLE - Performance Comparison (Reference: Tables 1-3 in paper)")
     print("="*80)
-    
+
     # Header
-    print(f"{'Dataset':<15} {'Algorithm':<15} {'PSR':<10} {'VSR':<10} {'Clusters':<10} {'Time(s)':<10}")
-    print("-"*70)
-    
+    print(f"{'Dataset':<15} {'Algorithm':<15} {'PSR':<10} {'Clusters':<10} {'Time(s)':<10}")
+    print("-"*60)
+
     for dataset_name, results in all_results.items():
         for algo_name, metrics in results.items():
             print(f"{dataset_name:<15} {algo_name:<15} "
-                  f"{metrics['PSR']:<10.3f} {metrics['VSR']:<10.3f} "
+                  f"{metrics['PSR']:<10.3f} "
                   f"{metrics['n_clusters']:<10} {metrics['time']:<10.3f}")
-        print("-"*70)
+        print("-"*60)
     
     print("\n" + "="*80)
     print("KEY FINDINGS (Reference: Section 4 - Experimental Results):")

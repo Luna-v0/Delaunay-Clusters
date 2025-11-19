@@ -7,10 +7,11 @@ We'll search over:
 - min_pts: [3, 4, 5, 6, 7, 8, 10, 12]
 
 Evaluation metrics:
-- PSR (Point Score Range): Higher is better
-- VSR (Variation Score Range): Higher is better
+- PSR (Point Score Range): Higher is better (IoU-based clustering quality)
 - Number of clusters: Should match expected count
-- Combined score: Weighted combination of metrics
+- Combined score: Weighted combination of PSR and cluster count accuracy
+
+Note: VSR is not used as it's not properly defined in the paper.
 """
 
 import numpy as np
@@ -22,7 +23,7 @@ from dtscan import (
     generate_test_data_s1,
     generate_test_data_s2,
     generate_test_data_s3,
-    calculate_psr_vsr
+    calculate_psr
 )
 from test_3d import generate_3d_pedestrians
 
@@ -89,16 +90,16 @@ def grid_search_dtscan(X, true_labels, expected_n_clusters,
             # Calculate metrics
             n_clusters = len(np.unique(labels[labels != -1]))
             n_noise = np.sum(labels == -1)
-            psr, vsr = calculate_psr_vsr(true_labels, labels)
+            psr = calculate_psr(true_labels, labels)
 
             # Cluster count error
             cluster_error = abs(n_clusters - expected_n_clusters)
 
             # Combined score: weighted combination
-            # Perfect score: PSR=1.0, VSR=1.0, cluster_error=0
-            # We want to maximize PSR and VSR while minimizing cluster_error
+            # Perfect score: PSR=1.0, cluster_error=0
+            # We want to maximize PSR while minimizing cluster_error
             cluster_penalty = cluster_error / max(expected_n_clusters, 1)
-            combined_score = (0.4 * psr + 0.4 * vsr + 0.2 * (1 - min(cluster_penalty, 1)))
+            combined_score = (0.7 * psr + 0.3 * (1 - min(cluster_penalty, 1)))
 
             results.append({
                 'z_threshold': z_thresh,
@@ -106,7 +107,6 @@ def grid_search_dtscan(X, true_labels, expected_n_clusters,
                 'n_clusters': n_clusters,
                 'n_noise': n_noise,
                 'PSR': psr,
-                'VSR': vsr,
                 'cluster_error': cluster_error,
                 'combined_score': combined_score,
                 'time': elapsed_time,
@@ -117,7 +117,7 @@ def grid_search_dtscan(X, true_labels, expected_n_clusters,
             if current % 10 == 0 or current == total_combinations:
                 print(f"Progress: {current}/{total_combinations} - "
                       f"Last: z={z_thresh}, min_pts={min_pts}, "
-                      f"clusters={n_clusters}, PSR={psr:.3f}, VSR={vsr:.3f}")
+                      f"clusters={n_clusters}, PSR={psr:.3f}")
 
         except Exception as e:
             results.append({
@@ -126,7 +126,6 @@ def grid_search_dtscan(X, true_labels, expected_n_clusters,
                 'n_clusters': 0,
                 'n_noise': 0,
                 'PSR': 0.0,
-                'VSR': 0.0,
                 'cluster_error': expected_n_clusters,
                 'combined_score': 0.0,
                 'time': 0.0,
@@ -148,18 +147,18 @@ def grid_search_dtscan(X, true_labels, expected_n_clusters,
     print(f"\nBest by Combined Score:")
     print(f"  z_threshold={best_combined['z_threshold']}, min_pts={best_combined['min_pts']}")
     print(f"  Clusters: {int(best_combined['n_clusters'])} (expected: {expected_n_clusters})")
-    print(f"  PSR: {best_combined['PSR']:.3f}, VSR: {best_combined['VSR']:.3f}")
+    print(f"  PSR: {best_combined['PSR']:.3f}")
     print(f"  Combined Score: {best_combined['combined_score']:.3f}")
 
     print(f"\nBest by PSR:")
     print(f"  z_threshold={best_psr['z_threshold']}, min_pts={best_psr['min_pts']}")
     print(f"  Clusters: {int(best_psr['n_clusters'])} (expected: {expected_n_clusters})")
-    print(f"  PSR: {best_psr['PSR']:.3f}, VSR: {best_psr['VSR']:.3f}")
+    print(f"  PSR: {best_psr['PSR']:.3f}")
 
     print(f"\nBest by Cluster Count Match:")
     print(f"  z_threshold={best_cluster_match['z_threshold']}, min_pts={best_cluster_match['min_pts']}")
     print(f"  Clusters: {int(best_cluster_match['n_clusters'])} (expected: {expected_n_clusters})")
-    print(f"  PSR: {best_cluster_match['PSR']:.3f}, VSR: {best_cluster_match['VSR']:.3f}")
+    print(f"  PSR: {best_cluster_match['PSR']:.3f}")
 
     # Statistics
     print(f"\n{'='*80}")
@@ -167,7 +166,6 @@ def grid_search_dtscan(X, true_labels, expected_n_clusters,
     print(f"{'='*80}")
     print(f"Successful runs: {len(results_df[results_df['status'] == 'success'])}/{len(results_df)}")
     print(f"PSR range: [{results_df['PSR'].min():.3f}, {results_df['PSR'].max():.3f}]")
-    print(f"VSR range: [{results_df['VSR'].min():.3f}, {results_df['VSR'].max():.3f}]")
     print(f"Cluster count range: [{int(results_df['n_clusters'].min())}, {int(results_df['n_clusters'].max())}]")
     print(f"Combined score range: [{results_df['combined_score'].min():.3f}, {results_df['combined_score'].max():.3f}]")
 
@@ -204,7 +202,6 @@ def analyze_parameter_sensitivity(results_df, dataset_name="Dataset"):
     print("\nEffect of z_threshold (averaged over all min_pts values):")
     z_analysis = results_df.groupby('z_threshold').agg({
         'PSR': 'mean',
-        'VSR': 'mean',
         'n_clusters': 'mean',
         'combined_score': 'mean'
     }).round(3)
@@ -214,7 +211,6 @@ def analyze_parameter_sensitivity(results_df, dataset_name="Dataset"):
     print("\nEffect of min_pts (averaged over all z_threshold values):")
     min_pts_analysis = results_df.groupby('min_pts').agg({
         'PSR': 'mean',
-        'VSR': 'mean',
         'n_clusters': 'mean',
         'combined_score': 'mean'
     }).round(3)
@@ -223,7 +219,7 @@ def analyze_parameter_sensitivity(results_df, dataset_name="Dataset"):
     # Top 10 parameter combinations
     print("\nTop 10 Parameter Combinations (by combined score):")
     top_10 = results_df.nlargest(10, 'combined_score')[
-        ['z_threshold', 'min_pts', 'n_clusters', 'PSR', 'VSR', 'combined_score']
+        ['z_threshold', 'min_pts', 'n_clusters', 'PSR', 'combined_score']
     ].round(3)
     print(top_10.to_string(index=False))
 

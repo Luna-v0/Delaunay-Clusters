@@ -206,8 +206,10 @@ class DTSCAN:
         area_mean = np.mean(areas)
         area_std = np.std(areas)
 
-        # Calculate z-scores (large positive values = outliers to remove)
-        area_z_scores = (areas - area_mean) / (area_std + 1e-10)
+        # Calculate z-scores according to Equation (2) in the paper
+        # Formula: (mean - value) / std
+        # Large/wide triangles get negative z-scores and should be removed
+        area_z_scores = (area_mean - areas) / (area_std + 1e-10)
 
         # Build edge length mapping
         edge_to_length = {}
@@ -224,15 +226,17 @@ class DTSCAN:
         length_mean = np.mean(all_lengths)
         length_std = np.std(all_lengths)
 
-        # Determine thresholds
+        # Determine thresholds (typically z_score_threshold = 2.0)
         area_thresh = self.area_threshold if self.area_threshold else self.z_score_threshold
         length_thresh = self.length_threshold if self.length_threshold else self.z_score_threshold
 
         # Filter triangles based on area z-scores (remove large triangles)
+        # With corrected z-score: large triangles have negative z-scores
+        # Keep triangles where z-score >= -threshold (i.e., not too large)
         valid_simplices = []
         for idx, (simplex, z_score) in enumerate(zip(self.triangulation.simplices, area_z_scores)):
-            # Keep triangles with small to medium areas (z-score not too large)
-            if z_score <= area_thresh:
+            # Keep triangles with small to medium areas (z-score >= -threshold)
+            if z_score >= -area_thresh:
                 valid_simplices.append(simplex)
 
         # Rebuild graph with filtered triangles and edges
@@ -244,13 +248,15 @@ class DTSCAN:
                     edge = tuple(sorted([simplex[i], simplex[j]]))
                     length = edge_to_length[edge]
 
-                    # Calculate z-score for this edge length
-                    edge_z_score = (length - length_mean) / \
+                    # Calculate z-score for this edge length according to Equation (3)
+                    # Formula: (mean - value) / std
+                    # Long edges get negative z-scores and should be removed
+                    edge_z_score = (length_mean - length) / \
                         (length_std + 1e-10)
 
                     # Keep edges with reasonable lengths (not too long)
-                    # Match JS implementation: use < instead of <=
-                    if edge_z_score < length_thresh:
+                    # Keep edges where z-score >= -threshold (i.e., not too long)
+                    if edge_z_score >= -length_thresh:
                         v1, v2 = simplex[i], simplex[j]
                         filtered_graph[v1].add(v2)
                         filtered_graph[v2].add(v1)
@@ -390,11 +396,16 @@ class DTSCAN:
         plt.show()
 
 
-def calculate_psr_vsr(true_labels: np.ndarray, pred_labels: np.ndarray) -> Tuple[float, float]:
+def calculate_psr(true_labels: np.ndarray, pred_labels: np.ndarray) -> float:
     """
-    Calculate PSR (Point Score Range) and VSR (Variation Score Range) metrics.
+    Calculate PSR (Point Score Range) metric.
 
-    Reference: Equations (4) and (5) in the paper
+    Reference: Equation (4) in the paper
+
+    Note: The paper's Equation (5) claiming to define VSR is identical to Equation (4),
+    so VSR is not properly defined. We only compute PSR here.
+
+    PSR measures clustering quality using IoU (Jaccard Index) between true and predicted clusters.
     """
     # Remove noise labels for evaluation
     mask = true_labels != -1
@@ -405,7 +416,7 @@ def calculate_psr_vsr(true_labels: np.ndarray, pred_labels: np.ndarray) -> Tuple
     unique_pred = np.unique(pred_labels_clean[pred_labels_clean != -1])
 
     if len(unique_pred) == 0:
-        return 0.0, 0.0
+        return 0.0
 
     psr_scores = []
 
@@ -420,15 +431,14 @@ def calculate_psr_vsr(true_labels: np.ndarray, pred_labels: np.ndarray) -> Tuple
             union = np.sum(true_mask | pred_mask)
 
             if union > 0:
+                # Using IoU (Jaccard Index) as PSR metric
                 psr = intersection / union
                 best_psr = max(best_psr, psr)
 
         psr_scores.append(best_psr)
 
     avg_psr = np.mean(psr_scores) if psr_scores else 0
-    vsr = np.std(psr_scores) if len(psr_scores) > 1 else 0
-
-    return avg_psr, 1 - vsr  # Return 1-VSR so closer to 1 is better
+    return avg_psr
 
 
 # Example usage and testing
@@ -453,13 +463,12 @@ if __name__ == "__main__":
     labels_s1 = dtscan.fit_predict(X_s1)
 
     # Calculate metrics
-    psr, vsr = calculate_psr_vsr(true_labels_s1, labels_s1)
+    psr = calculate_psr(true_labels_s1, labels_s1)
 
     print(
         f"Number of clusters found: {len(np.unique(labels_s1[labels_s1 != -1]))}")
     print(f"Number of noise points: {np.sum(labels_s1 == -1)}")
     print(f"PSR (Point Score Range): {psr:.3f}")
-    print(f"VSR (Variation Score Range): {vsr:.3f}")
 
     # Visualize the process
     print("\nVisualizing clustering process...")
@@ -474,11 +483,11 @@ if __name__ == "__main__":
     dtscan_s2 = DTSCAN(z_score_threshold=2.0, min_pts=6)
     labels_s2 = dtscan_s2.fit_predict(X_s2)
 
-    psr, vsr = calculate_psr_vsr(true_labels_s2, labels_s2)
+    psr = calculate_psr(true_labels_s2, labels_s2)
     print(
         f"Number of clusters found: {len(np.unique(labels_s2[labels_s2 != -1]))}")
     print(f"Number of noise points: {np.sum(labels_s2 == -1)}")
-    print(f"PSR: {psr:.3f}, VSR: {vsr:.3f}")
+    print(f"PSR: {psr:.3f}")
 
     # Test with S3-like data
     print("\n" + "="*40)
@@ -489,11 +498,11 @@ if __name__ == "__main__":
     dtscan_s3 = DTSCAN(z_score_threshold=2.0, min_pts=6)
     labels_s3 = dtscan_s3.fit_predict(X_s3)
 
-    psr, vsr = calculate_psr_vsr(true_labels_s3, labels_s3)
+    psr = calculate_psr(true_labels_s3, labels_s3)
     print(
         f"Number of clusters found: {len(np.unique(labels_s3[labels_s3 != -1]))}")
     print(f"Number of noise points: {np.sum(labels_s3 == -1)}")
-    print(f"PSR: {psr:.3f}, VSR: {vsr:.3f}")
+    print(f"PSR: {psr:.3f}")
 
     print("\n" + "="*80)
     print("Implementation complete!")
