@@ -178,9 +178,15 @@ def cluster_test_3():
 
 def clusters_paper():
     """
-    
+    Load the cluster sets from the paper in a fixed order (S1, S2, S3).
     """
-    files = glob('../datasets/*.txt')
+    import os
+    # Get the absolute path relative to this file
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.dirname(script_dir)
+    base_path = os.path.join(repo_root, 'datasets')
+
+    files = [f'{base_path}/S1.txt', f'{base_path}/S2.txt', f'{base_path}/S3.txt']
     cluster_sets = []
     for file in files:
         df = pd.read_csv(file, sep='\s+', header=None, names=['x', 'y', 'label'])

@@ -10,13 +10,22 @@ __pycache__/
 venv/
 ENV/
 env/
-
+.env
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+
+
+photos/
+AGENTS.md
+optuna.db
+optuna_db/
+mlruns/
+
+
 
 # Jupyter Notebook
 .ipynb_checkpoints

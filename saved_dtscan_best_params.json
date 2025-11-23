@@ -1,0 +1,26 @@
+{
+  "S1": {
+    "MinPts": 6,
+    "AreaThreshold": -2.0,
+    "LengthThreshold": -0.526,
+    "PSR": 0.6081552690991188,
+    "n_clusters": 3,
+    "expected_clusters": 3
+  },
+  "S2": {
+    "MinPts": 2,
+    "AreaThreshold": -0.5,
+    "LengthThreshold": -0.75,
+    "PSR": 0.9896907216494846,
+    "n_clusters": 2,
+    "expected_clusters": 2
+  },
+  "S3": {
+    "MinPts": 5,
+    "AreaThreshold": -4.0,
+    "LengthThreshold": -0.25,
+    "PSR": 0.9896096900298581,
+    "n_clusters": 7,
+    "expected_clusters": 7
+  }
+}
