@@ -10,7 +10,10 @@ __pycache__/
 venv/
 ENV/
 env/
+
+# Environment variables
 .env
+
 # IDE
 .vscode/
 .idea/
@@ -18,14 +21,13 @@ env/
 *.swo
 *~
 
-
+# Project specific
 photos/
 AGENTS.md
 optuna.db
 optuna_db/
 mlruns/
-
-
+density.csv
 
 # Jupyter Notebook
 .ipynb_checkpoints

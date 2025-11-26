@@ -8,6 +8,7 @@ from scipy.spatial.distance import pdist
 import math
 import warnings
 from sklearn.neighbors import KNeighborsClassifier
+import distinctipy
 
 class DTC:
 
@@ -429,7 +430,7 @@ class DTC:
       np.array(joined_df[['x','y']][joined_df['est_clust']==0])
       predict_x = np.array(joined_df[['x','y']][joined_df['est_clust']==0])
 
-      if len(predict_x) != 0:
+      if len(predict_x) != 0 and len(X_train) != 0:
         knn = KNeighborsClassifier(n_neighbors=1)
         knn.fit(X_train, y_train)
         knn_result = knn.predict(predict_x)

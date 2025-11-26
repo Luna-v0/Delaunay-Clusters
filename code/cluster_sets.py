@@ -178,7 +178,7 @@ def cluster_test_3():
 
 def clusters_paper():
     """
-    Load the cluster sets from the paper in a fixed order (S1, S2, S3).
+    Load the cluster sets from the paper in a fixed order (S1, S2, S3, S4).
     """
     import os
     # Get the absolute path relative to this file
@@ -186,11 +186,24 @@ def clusters_paper():
     repo_root = os.path.dirname(script_dir)
     base_path = os.path.join(repo_root, 'datasets')
 
-    files = [f'{base_path}/S1.txt', f'{base_path}/S2.txt', f'{base_path}/S3.txt']
+    files = [f'{base_path}/S1.txt', f'{base_path}/S2.txt', f'{base_path}/S3.txt', f'{base_path}/S4.txt']
     cluster_sets = []
     for file in files:
         df = pd.read_csv(file, sep='\s+', header=None, names=['x', 'y', 'label'])
         cluster_sets.append(df)
     return cluster_sets
-    
-    
+
+def load_s5():
+    """
+    Load the S5 dataset from CSV file.
+    """
+    import os
+    # Get the absolute path relative to this file
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.dirname(script_dir)
+    base_path = os.path.join(repo_root, 'datasets')
+
+    file_path = f'{base_path}/S5.csv'
+    df = pd.read_csv(file_path)
+    return df
+
